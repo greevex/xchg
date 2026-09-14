@@ -189,7 +189,7 @@ hub_push() {  # <hub> <сообщение коммита>
 resolve_user() {  # <hub> <запрос> -> login (people/ или contacts.md, casefold, кириллица через python3)
   local d="$(hub_path "$1")" q="$2" hit=""
   [ -d "$d/people/$q" ] && { echo "$q"; return 0; }
-  [ -f "$d/contacts.md" ] || return 1
+  [ -f "$d/contacts.md" ] || { [ "$q" = me ] && { hub_login "$1"; return 0; }; return 1; }
   if have python3; then
     hit=$(python3 - "$q" "$d/contacts.md" <<'PYR'
 import sys
@@ -209,7 +209,10 @@ PYR
       n=split($3, a, /[ ,]+/); if (tolower(login)==q) {print login; exit}
       for (i=1;i<=n;i++) if (a[i]!="" && tolower(a[i])==q) {print login; exit} }' "$d/contacts.md")
   fi
-  [ -n "$hit" ] && { echo "$hit"; return 0; }; return 1
+  [ -n "$hit" ] && { echo "$hit"; return 0; }
+  # «me» — это я: так inbox подписывает мои адреса (me, @p:me). Реального участника «me» не перекрываем.
+  [ "$q" = me ] && { hub_login "$1"; return 0; }
+  return 1
 }
 has_project() { [ -d "$(hub_path "$1")/projects/$2" ]; }
 user_projects() {  # <hub> <user> -> проекты, где у человека есть агент

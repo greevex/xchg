@@ -113,6 +113,8 @@ run in_api "$X" inbox; assert_contains "$OUT" "@api:me"; assert_contains "$OUT" 
 
 t "заметки читаются курсором, задачи остаются"
 run in_api "$X" seen all; assert_contains "$OUT" "прочитано: work:all"
+run in_api "$X" seen @api:me; assert_eq "$RC" 0 "адрес из колонки inbox (@api:me) принимается"; assert_contains "$OUT" "прочитано: work:@api:alice"
+run in_api "$X" seen me; assert_eq "$RC" 0 "me — это я"; assert_contains "$OUT" "прочитано: work:alice"
 run in_api "$X" inbox; assert_not_contains "$OUT" "Пятница короткий день"; ok "прочитанная заметка не мозолит глаза"
 run in_api "$X" inbox --history; assert_contains "$OUT" "Пятница короткий день"
 assert_contains "$(in_api "$X" inbox)" "Задача в очередь api"; ok "задача остаётся видимой"
@@ -218,6 +220,8 @@ run in_api "$X" inbox; assert_contains "$OUT" "Сначала заглушу, п
 
 t "второй хаб: свои агенты между собой"
 run "$X" hub init me --login alice; assert_eq "$RC" 0 "личный хаб"
+run in_api "$X" seen me; assert_eq "$RC" 1 "me в двух хабах — неоднозначно"; assert_contains "$OUT" "есть в хабах: work me"
+run in_api "$X" seen work:me; assert_eq "$RC" 0 "с префиксом хаба — однозначно"; assert_contains "$OUT" "прочитано: work:alice"
 run in_api "$X" projects add api --hub me; assert_eq "$RC" 0 "проект api в личном хабе"
 run in_web "$X" projects add web --hub me; assert_eq "$RC" 0 "проект web в личном хабе"
 run in_api "$X" send me:@web:alice handoff <<< '# Продолжи миграцию'; assert_eq "$RC" 0 "агент пишет своему же агенту"
