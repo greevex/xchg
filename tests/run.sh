@@ -86,6 +86,16 @@ run in_api "$X" send @web task4 <<< '# Всем на проекте web'; assert
 run in_api "$X" post all news --ref "api/CHANGELOG.md" <<< '# Релиз 2.3'; assert_contains "$OUT" "отправлено: work:all/"
 run in_api "$X" send @nope x <<< '# x'; assert_eq "$RC" 1 "нет такого проекта"; assert_contains "$OUT" "xchg projects add nope"
 run in_api "$X" send nobody x <<< '# x'; assert_eq "$RC" 1 "нет такого человека"; assert_contains "$OUT" "xchg who"
+# реестр людей — книга контактов: каталог без строки в книге адресатом не считается
+mkdir -p "$H/exchange/work/people/dave"; touch "$H/exchange/work/people/dave/.gitkeep"
+# алиас участника, записанного выше, совпадает с логином bob — побеждает логин
+awk '{print} /^\|---/ {print "| erin | Эрин | bob | erin@example.com |"}' "$H/exchange/work/contacts.md" > "$SB/c.md" && mv "$SB/c.md" "$H/exchange/work/contacts.md"
+( cd "$H/exchange/work" && git add -A && git commit -qm gone && git push -q )
+run in_api "$X" send dave x <<< '# x'; assert_eq "$RC" 1 "ушедшему не пишем"; assert_contains "$OUT" "«dave» больше не в хабе work"
+run in_api "$X" send work:dave x <<< '# x'; assert_eq "$RC" 1 "и с префиксом хаба"; assert_contains "$OUT" "«dave» больше не в хабе work"
+run in_api "$X" send work:nobody x <<< '# x'; assert_contains "$OUT" "адресат «nobody» не найден в хабе work"
+run in_api "$X" send bob task5 <<< '# По логину, а не по чужому алиасу'; assert_contains "$OUT" "отправлено: work:people/bob/"
+run in_api "$X" send Эрин task6 <<< '# По имени'; assert_contains "$OUT" "отправлено: work:people/erin/"
 M=$(ls "$H/exchange/work/projects/api/bob/"*task1.md)
 assert_eq "$(sed -n 's/^from: //p' "$M")" "alice/api" "from = человек/проект"
 assert_eq "$(sed -n 's/^to: //p' "$M")" "@api:bob" "to = канонический адрес"

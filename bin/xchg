@@ -186,34 +186,40 @@ hub_push() {  # <hub> <сообщение коммита>
 }
 
 # --- люди и проекты хаба ---------------------------------------------------------------------
-resolve_user() {  # <hub> <запрос> -> login (people/ или contacts.md, casefold, кириллица через python3)
+resolve_user() {  # <hub> <запрос> -> login. Реестр людей — только contacts.md: нет строки — нет в хабе.
+  # Сначала точный логин по всем строкам, потом имя, слова имени и алиасы (casefold, кириллица через python3).
   local d="$(hub_path "$1")" q="$2" hit=""
-  [ -d "$d/people/$q" ] && { echo "$q"; return 0; }
-  [ -f "$d/contacts.md" ] || { [ "$q" = me ] && { hub_login "$1"; return 0; }; return 1; }
-  if have python3; then
-    hit=$(python3 - "$q" "$d/contacts.md" <<'PYR'
+  if [ -f "$d/contacts.md" ]; then
+    if have python3; then
+      hit=$(python3 - "$q" "$d/contacts.md" <<'PYR'
 import sys
-q=sys.argv[1].strip().casefold()
+q=sys.argv[1].strip().casefold(); other=None
 for line in open(sys.argv[2],encoding='utf-8'):
     if not line.startswith('|'): continue
     c=[x.strip() for x in line.strip().strip('|').split('|')]
     if len(c)<3 or c[0] in ('login','') or c[0].startswith('-'): continue
     login,name,aliases=c[0],c[1],c[2]
-    cand={login.casefold(),name.casefold()}|{w.casefold() for w in name.split()}|{a.strip().casefold() for a in aliases.split(',') if a.strip()}
-    if q in cand: print(login); break
+    if login.casefold()==q: print(login); break
+    cand={name.casefold()}|{w.casefold() for w in name.split()}|{a.strip().casefold() for a in aliases.split(',') if a.strip()}
+    if other is None and q in cand: other=login
+else:
+    if other: print(other)
 PYR
 )
-  else  # без python3 tolower в awk фолдит латиницу (и кириллицу в gawk с UTF-8 локалью)
-    hit=$(awk -F'|' -v q="$q" 'BEGIN{q=tolower(q)} /^\|/ {
-      login=$2; gsub(/^ +| +$/,"",login); if (login=="login"||login==""||login~/^-/) next
-      n=split($3, a, /[ ,]+/); if (tolower(login)==q) {print login; exit}
-      for (i=1;i<=n;i++) if (a[i]!="" && tolower(a[i])==q) {print login; exit} }' "$d/contacts.md")
+    else  # без python3 tolower в awk фолдит латиницу (и кириллицу в gawk с UTF-8 локалью)
+      hit=$(awk -F'|' -v q="$q" 'BEGIN{q=tolower(q)} /^\|/ {
+        login=$2; gsub(/^ +| +$/,"",login); if (login=="login"||login==""||login~/^-/) next
+        if (tolower(login)==q) {found=login; exit}
+        n=split($3, a, /[ ,]+/); for (i=1;i<=n;i++) if (other=="" && a[i]!="" && tolower(a[i])==q) other=login }
+        END { if (found!="") print found; else if (other!="") print other }' "$d/contacts.md")
+    fi
   fi
   [ -n "$hit" ] && { echo "$hit"; return 0; }
-  # «me» — это я: так inbox подписывает мои адреса (me, @p:me). Реального участника «me» не перекрываем.
+  # «me» — это я: так inbox подписывает мои адреса (me, @p:me). Участника «me» из книги не перекрываем.
   [ "$q" = me ] && { hub_login "$1"; return 0; }
   return 1
 }
+user_gone() { [ -d "$(hub_path "$1")/people/$2" ]; }  # <hub> <запрос>: каталог остался, а в книге строки нет
 has_project() { [ -d "$(hub_path "$1")/projects/$2" ]; }
 user_projects() {  # <hub> <user> -> проекты, где у человека есть агент
   local d="$(hub_path "$1")" p
@@ -280,11 +286,17 @@ parse_addr() {  # <[hub:]часть[:часть]> -> A_HUB A_REL A_LABEL
     else hits=("$(default_hub)"); fi
     case ${#hits[@]} in
       1) hub="${hits[0]}";;
-      0) [ -n "$u" ] && die "адресат «${u}» не найден ни в одном хабе (xchg who)" || die "нет проекта «${p}» ни в одном хабе (завести: xchg projects add $p)";;
+      0) [ -n "$p" ] && [ -z "$u" ] && die "нет проекта «${p}» ни в одном хабе (завести: xchg projects add $p)"
+         for h in ${HUBS[@]+"${HUBS[@]}"}; do user_gone "$h" "$u" && die "«${u}» больше не в хабе $h (xchg who --hub $h)"; done
+         die "адресат «${u}» не найден ни в одном хабе (xchg who)";;
       *) die "«${spec}» есть в хабах: ${hits[*]} — уточни, например ${hits[0]}:$spec";;
     esac
   fi
-  if [ -n "$u" ]; then u=$(resolve_user "$hub" "$u") || die "адресат «${u}» не найден в хабе $hub (xchg who --hub $hub)"; fi
+  if [ -n "$u" ]; then
+    l=$(resolve_user "$hub" "$u") || { user_gone "$hub" "$u" && die "«${u}» больше не в хабе $hub (xchg who --hub $hub)"
+      die "адресат «${u}» не найден в хабе $hub (xchg who --hub $hub)"; }
+    u="$l"
+  fi
   if [ -n "$p" ]; then has_project "$hub" "$p" || die "нет проекта «${p}» в хабе $hub (завести: xchg projects add $p --hub $hub)"; fi
   A_HUB="$hub"
   if   [ -n "$p" ] && [ -n "$u" ]; then A_REL="projects/$p/$u"; A_LABEL="@$p:$u"
