@@ -210,7 +210,9 @@ PYR
       hit=$(awk -F'|' -v q="$q" 'BEGIN{q=tolower(q)} /^\|/ {
         login=$2; gsub(/^ +| +$/,"",login); if (login=="login"||login==""||login~/^-/) next
         if (tolower(login)==q) {found=login; exit}
-        n=split($3, a, /[ ,]+/); for (i=1;i<=n;i++) if (other=="" && a[i]!="" && tolower(a[i])==q) other=login }
+        if (other!="") next
+        name=$3; gsub(/^ +| +$/,"",name); if (name!="" && tolower(name)==q) {other=login; next}
+        n=split(name " " $4, a, /[ ,]+/); for (i=1;i<=n;i++) if (a[i]!="" && tolower(a[i])==q) other=login }
         END { if (found!="") print found; else if (other!="") print other }' "$d/contacts.md")
     fi
   fi

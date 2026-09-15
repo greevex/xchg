@@ -96,6 +96,15 @@ run in_api "$X" send work:dave x <<< '# x'; assert_eq "$RC" 1 "и с префи�
 run in_api "$X" send work:nobody x <<< '# x'; assert_contains "$OUT" "адресат «nobody» не найден в хабе work"
 run in_api "$X" send bob task5 <<< '# По логину, а не по чужому алиасу'; assert_contains "$OUT" "отправлено: work:people/bob/"
 run in_api "$X" send Эрин task6 <<< '# По имени'; assert_contains "$OUT" "отправлено: work:people/erin/"
+# то же без python3: поиск по книге уходит в awk
+NOPY="$SB/nopy"; mkdir -p "$NOPY"
+IFS=: read -r -a PDIRS <<< "$PATH"
+for dir in "${PDIRS[@]}"; do for f in "$dir"/*; do case "${f##*/}" in (python3*) continue;; esac
+  [ -x "$f" ] && [ ! -e "$NOPY/${f##*/}" ] && ln -s "$f" "$NOPY/${f##*/}"; done; done; true
+run in_api env PATH="$NOPY" "$X" send боря task7 <<< '# Алиас без python3'; assert_contains "$OUT" "отправлено: work:people/bob/"
+run in_api env PATH="$NOPY" "$X" send bob task8 <<< '# Логин без python3'; assert_contains "$OUT" "отправлено: work:people/bob/"
+run in_api env PATH="$NOPY" "$X" send "Борис Петров" task9 <<< '# Полное имя без python3'; assert_contains "$OUT" "отправлено: work:people/bob/"
+run in_api env PATH="$NOPY" "$X" send dave x <<< '# x'; assert_contains "$OUT" "«dave» больше не в хабе work"
 M=$(ls "$H/exchange/work/projects/api/bob/"*task1.md)
 assert_eq "$(sed -n 's/^from: //p' "$M")" "alice/api" "from = человек/проект"
 assert_eq "$(sed -n 's/^to: //p' "$M")" "@api:bob" "to = канонический адрес"
