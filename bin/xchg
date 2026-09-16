@@ -733,7 +733,24 @@ who_table() {  # <hub> <contacts.md>: книга контактов + проек
   done < "$2"
   return 0
 }
+cmd_contact_rm() {  # <login> [--hub H]: убрать чужую строку из книги; каталоги и история остаются
+  local login=""
+  while [ $# -gt 0 ]; do case "$1" in
+    --hub) OPT_HUB="$2"; shift 2;; -*|"") udie "contact rm <login> [--hub H]";;
+    *) [ -z "$login" ] || udie "contact rm <login> [--hub H]"; login="$1"; shift;; esac; done
+  [ -n "$login" ] || udie "contact rm <login> [--hub H]"
+  local h; h="${OPT_HUB:-$(default_hub)}"; is_hub "$h" || die "нет хаба «${h}»"
+  sync_hubs "$h"; local d="$(hub_path "$h")"; local c="$d/contacts.md"
+  [ "$login" != "$(hub_login "$h")" ] || die "свою строку не убирают — чтобы уйти из хаба: xchg hub rm $h"
+  [ -f "$c" ] && awk -F'|' -v l="$login" '/^\|/ { x=$2; gsub(/^ +| +$/,"",x); if (x==l) f=1 } END { exit !f }' "$c" \
+    || die "в книге контактов хаба $h нет «${login}» (xchg who --hub $h)"
+  check_contract "$h"
+  awk -F'|' -v l="$login" '/^\|/ { x=$2; gsub(/^ +| +$/,"",x); if (x==l) next } { print }' "$c" > "$c.tmp" && mv "$c.tmp" "$c"
+  git -C "$d" add contacts.md; hub_push "$h" "[xchg] contacts: -$login" || true
+  echo "убран из книги контактов хаба $h: $login (каталоги и письма остаются в истории)"
+}
 cmd_contact() {
+  [ "${1:-}" = rm ] && { shift; cmd_contact_rm "$@"; return; }
   require_hubs; local name="" aliases="" contact="" set=0
   while [ $# -gt 0 ]; do case "$1" in
     --name) name="$2"; set=1; shift 2;; --aliases) aliases="$2"; set=1; shift 2;;
@@ -929,7 +946,8 @@ xchg — обмен сообщениями между агентами Claude Co
   thread <файл>                             переписка по re:, включая закрытые
   forward <файл> <адрес> [--note «…»]       переслать в другой хаб
   who [запрос] [--hub H]                    контакты хабов
-  contact [--name N] [--aliases A] [--projects P] [--contact C]   моя строка в contacts.md
+  contact [--name N] [--aliases A] [--contact C]   моя строка в contacts.md
+  contact rm <login> [--hub H]              убрать человека из книги контактов (адреса больше нет)
   agent                                     мои адреса в этой сессии
   projects [--hub H] | projects add <имя> [--repo <где код>] [--owner login]
   hubs | hub init <имя> [--remote URL] | hub add <имя> <remote> [--login L]
