@@ -1,23 +1,27 @@
-# Агенты и проекты
+# Agents and projects
 
-## Агент = человек × проект
+*Русская версия: [ru/agents.md](ru/agents.md).*
 
-Агент — Claude Code в конкретном репозитории под управлением конкретного человека. Отдельного
-имени у него нет: адрес складывается из проекта и человека, поэтому `@api:alice` и `alice:@api` —
-один и тот же ящик.
+## Agent = person × project
 
-Проект текущей сессии — имя основного репозитория (для worktree берётся главный, не рабочая
-копия). Если клон назван иначе, чем проект в хабе, репозиторий говорит об этом сам:
+An agent is Claude Code in a specific repository, run by a specific person. It has no separate
+name: its address is made of the project and the person, so `@api:alice` and `alice:@api` are one
+and the same mailbox.
+
+The current session's project is the name of the main repository (for a worktree, the primary
+repository is used, not the working copy). If the clone is named differently from the project in
+the hub, the repository says so itself:
 
 ```bash
 git config xchg.project api
 ```
 
-Имя проекта — только `[a-z0-9._-]`. Если репозиторий называется иначе (например, `TRENDS-frontend`),
-`xchg projects add` без имени подскажет нормализованное, а `xchg projects add trends-frontend` в этом
-репозитории заведёт проект и сам запишет `xchg.project`.
+A project name is only `[a-z0-9._-]`. If the repository is named otherwise (for example,
+`TRENDS-frontend`), `xchg projects add` without a name suggests a normalized one, and
+`xchg projects add trends-frontend` in that repository adds the project and writes `xchg.project`
+by itself.
 
-`xchg agent` печатает адреса этой сессии — по одному на хаб, где такой проект заведён:
+`xchg agent` prints this session's addresses — one per hub where such a project exists:
 
 ```console
 $ cd ~/repos/api && xchg agent
@@ -25,24 +29,24 @@ work:@api:alice
 me:@api:alice
 ```
 
-Все сессии, worktree и машины над одним репозиторием — один адресат: письмо заберёт та сессия,
-которая раньше начнётся.
+All sessions, worktrees and machines over one repository are one recipient: a message is picked up
+by whichever session starts first.
 
-## Репозиторий становится проектом
+## A repository becomes a project
 
-Пока репозиторий не заведён проектом, агент в нём не адресуем:
+Until a repository is added as a project, the agent in it can't be addressed:
 
 ```console
 $ cd ~/repos/api && xchg projects add
 project added: work:projects/api (card: projects/api/README.md)
 ```
 
-Команда делает три вещи: заводит проект с карточкой (если его ещё нет), записывает вас
-в книгу контактов хаба и создаёт паспорт вашего агента. Если проект уже завёл кто-то другой,
-`projects add` просто присоединяет к нему вас.
+The command does three things: adds the project with a card (if it doesn't exist yet), puts you in
+the hub's contact book and creates your agent's passport. If someone else has already added the
+project, `projects add` just joins you to it.
 
-Карточка проекта и паспорт агента — единственные файлы со знанием в хабе, и они намеренно узкие:
-указатели, а не состояние.
+The project card and the agent passport are the only files with knowledge in a hub, and they are
+narrow on purpose: pointers, not state.
 
 ```markdown
 # api                                    ← projects/api/README.md
@@ -59,33 +63,34 @@ Repository: git@example.com:team/api.git
 Repository docs: .claude-docs/index.md
 ```
 
-Репозиторий и точка входа в документацию берутся из текущего клона (`origin` и первый найденный
-из `.claude-docs/index.md`, `CLAUDE.md`, `README.md`), поэтому паспорт не нужно заполнять руками.
+The repository and the documentation entry point come from the current clone (`origin` and the first
+one found of `.claude-docs/index.md`, `CLAUDE.md`, `README.md`), so the passport doesn't need to be
+filled in by hand.
 
-`xchg projects` показывает проекты хабов, помечает тот, в котором вы сейчас, и печатает строку
-про репозиторий из карточки. `xchg who` показывает людей и проекты, на которых у них есть агенты.
+`xchg projects` shows the hubs' projects, marks the one you are in and prints the repository line
+from the card. `xchg who` shows people and the projects where they have agents.
 
-## Что видно в сессии
+## What a session sees
 
-`xchg inbox` показывает адреса **этой** сессии:
+`xchg inbox` shows **this** session's addresses:
 
 | | |
 |---|---|
-| `all` | сообщения всему хабу |
-| `me` | `people/<вы>` — вам как человеку |
-| `@<проект>` | очередь вашего проекта |
-| `@<проект>:me` | лично вашему агенту |
+| `all` | messages to the whole hub |
+| `me` | `people/<you>` — to you as a person |
+| `@<project>` | your project's queue |
+| `@<project>:me` | to your agent personally |
 
-Сообщения, адресованные вам в других проектах, сворачиваются в строку-счётчик: они ждут сессии
-в том репозитории. `xchg inbox --all` показывает их, не переключаясь. Письмо в общем адресе, которое не относится
-к этому агенту, можно заглушить для него: `xchg mute <файл>`.
+Messages addressed to you in other projects collapse into a counter line: they wait for a session
+in that repository. `xchg inbox --all` shows them without switching. A message in a shared address
+that doesn't concern this agent can be muted for it: `xchg mute <file>`.
 
-Заметку в общий адрес (`all`, `me`) прочитать должен каждый ваш агент: отметка «прочитано» хранится
-отдельно для каждого из них, поэтому агент в `api` не «съедает» её у агента в `web`.
+A note to a shared address (`all`, `me`) must be read by each of your agents: the "read" mark is
+kept separately for each of them, so the agent in `api` doesn't "eat" it for the agent in `web`.
 
-## Свои агенты между собой
+## Your own agents between themselves
 
-Заведите хаб без remote — он живёт локально и никому, кроме вас, не виден:
+Create a hub without a remote — it lives locally and is visible to no one but you:
 
 ```console
 $ xchg hub init me
@@ -93,12 +98,12 @@ $ cd ~/repos/api && xchg projects add --hub me
 $ cd ~/repos/web && xchg projects add --hub me
 
 $ cd ~/repos/api && xchg send me:@web:alice handoff <<'MSG'
-# Продолжи миграцию
-Схема — в api/.claude-docs/db.md, осталось перенести индексы.
+# Continue the migration
+The schema is in api/.claude-docs/db.md; what's left is moving the indexes.
 MSG
 sent: me:projects/web/alice/20260909-111506_alice-api_handoff.md
 ```
 
-Следующая сессия в `~/repos/web` увидит это письмо в хуке. `from` — `alice/api`, поэтому
-`xchg reply` ответит именно тому агенту. Когда машин станет больше, `xchg hub remote me <url>`
-выносит хаб на сервер, и та же переписка ходит между машинами.
+The next session in `~/repos/web` sees this message in a hook. `from` is `alice/api`, so
+`xchg reply` answers exactly that agent. When you have more machines, `xchg hub remote me <url>`
+moves the hub to a server, and the same conversation goes between machines.

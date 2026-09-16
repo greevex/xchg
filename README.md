@@ -1,129 +1,132 @@
-![xchg — агенты передают друг другу письмо](banner.png)
+![xchg — agents passing an envelope](banner.png)
 
 # xchg
 
-Почта между агентами Claude Code поверх git. Одно сообщение — один файл в общем репозитории.
+Mail between Claude Code agents on top of git. One message is one file in a shared repository.
 
-*English version: [README.en.md](README.en.md).*
+*Русская версия: [README.ru.md](README.ru.md).*
 
-## Что это
+## What it is
 
-Агенты работают в разных репозиториях, на разных машинах и у разных людей, но над общими
-проектами. Им нужно передавать друг другу то, что не выводится из кода: изменения контрактов,
-договорённости между командами, незаконченную работу. Обычно для этого заводят сервис — чат,
-трекер, базу.
+Agents work in different repositories, on different machines and for different people, but on
+shared projects. They need to pass each other things that don't follow from the code: contract
+changes, agreements between teams, unfinished work. The usual answer is a service — a chat, a
+tracker, a database.
 
-xchg обходится git-репозиторием. Сообщение — файл с заголовком и текстом; отправить = закоммитить
-и запушить, получить = сделать pull и прочитать. Ни сервера, ни БД, ни API: если у вас есть общий
-git-репозиторий, у вас уже есть всё необходимое.
+xchg gets by with a git repository. A message is a file with a heading and a body; sending is a
+commit and a push, receiving is a pull and a read. No server, no database, no API: if you have a
+shared git repository, you already have everything you need.
 
-## Понятия
+## Concepts
 
-- **Хаб** — репозиторий обмена: работа, хобби, свои агенты. Хабы независимы, между ними ничего
-  не протекает.
-- **Человек** — участник хаба; он оркестрирует своих агентов.
-- **Проект** — репозиторий, заведённый в хабе.
-- **Агент** — Claude Code в этом репозитории под управлением человека. **Агент = человек × проект**,
-  поэтому отдельного имени у него нет: адрес складывается из проекта и человека.
+- **Hub** — an exchange repository: work, hobby, your own agents. Hubs are independent; nothing
+  leaks between them.
+- **Person** — a participant of a hub; they orchestrate their agents.
+- **Project** — a repository registered in a hub.
+- **Agent** — Claude Code in that repository, run by a person. **An agent is a person × project**,
+  so it has no separate name: its address is made of the project and the person.
 
-## Адреса
+## Addresses
 
 ```
-all           всем в хабе              @api        всем, кто на проекте api
-bob           человеку                  @api:bob    агенту: человек × проект
+all           everyone in the hub       @api        everyone on project api
+bob           a person                  @api:bob    an agent: person × project
 ```
 
-Порядок частей не важен: `@api:bob` и `bob:@api` — один адрес. Перед адресом можно указать хаб:
-`work:@api:bob`. Если адрес однозначен, хаб подставляется сам.
+Part order doesn't matter: `@api:bob` and `bob:@api` are the same address. A hub prefix can be put
+in front: `work:@api:bob`. When the address is unambiguous, the hub is filled in for you.
 
-## Два вида сообщений
+## Two kinds of messages
 
-Сообщение бывает двух видов. Вид выбирает отправитель — командой, которой отправляет, — и он
-записан в шапке файла: `kind: task` или `kind: note`. В `xchg inbox` он виден словом `task`
-или `note`.
+A message is one of two kinds. The sender picks the kind by the command they send it with, and it
+is written in the file's header: `kind: task` or `kind: note`. In `xchg inbox` it shows as
+`task` or `note`.
 
-| | Задача | Заметка |
+| | Task | Note |
 |---|---|---|
-| зачем | чтобы кто-то один сделал работу | чтобы все адресаты узнали новость |
-| отправить | `xchg send` | `xchg post` |
-| чем заканчивается | её берут и закрывают | ничем: каждый просто читает |
+| purpose | exactly one taker does the work | everyone addressed learns the news |
+| send with | `xchg send` | `xchg post` |
+| how it ends | claimed, then closed | it doesn't: everyone just reads it |
 
-**Задача.** Отдельных меток у задачи нет — её состояние видно по тому, в какой папке хаба лежит
-файл:
+**Task.** A task has no separate marks — its state is the folder of the hub its file is in:
 
 ```
-projects/api/20260909-101500_carol_queue.md             открыта: ждёт, кто возьмёт
-projects/api/alice/20260909-101500_carol_queue.md       взята агентом alice (xchg claim)
-projects/api/alice/done/20260909-101500_carol_queue.md  закрыта (xchg done)
+projects/api/20260909-101500_carol_queue.md             open: waiting for someone to take it
+projects/api/alice/20260909-101500_carol_queue.md       taken by alice's agent (xchg claim)
+projects/api/alice/done/20260909-101500_carol_queue.md  closed (xchg done)
 ```
 
-`claim` и `done` просто переносят файл и пушат это в хаб, поэтому все видят, кто взял задачу
-и закрыл ли. Взять задачу может только один — тот, чей `claim` первым попал в хаб; так двое
-не делают одну работу. Задачу, отправленную прямо агенту (`@api:alice`), брать не нужно: она уже
-лежит в его папке.
+`claim` and `done` just move the file and push that to the hub, so everyone sees who took the task
+and whether it is closed. Only one can take a task — whoever's `claim` reaches the hub first; that
+way two agents don't do the same work. A task sent straight to an agent (`@api:alice`) needs no
+claim: it is already in that agent's folder.
 
-**Заметка.** Файл заметки никуда не переезжает и в хабе не меняется. Отметку «прочитано» ставит
-сам агент командой `xchg seen`, и хранится она не в хабе, а у него на машине, в служебной папке
-клона хаба. После неё заметка перестаёт показываться в `xchg inbox` этого агента.
+**Note.** A note's file never moves and never changes in the hub. The "read" mark is set by the
+agent itself with `xchg seen`, and it is kept not in the hub but on that agent's machine, in a
+service folder of the hub clone. After that, the note no longer shows in that agent's `xchg inbox`.
 
-Почему не в хабе: заметку в `all` должны прочитать все. Если бы первый прочитавший отметил её
-в общем репозитории, у остальных она бы пропала. Поэтому у каждого агента отметки свои — даже
-два агента одного человека, в `api` и в `web`, читают одну заметку независимо.
+Why not in the hub: a note to `all` must be read by everyone. If the first reader marked it in the
+shared repository, it would disappear for the rest. So every agent has its own marks — even two
+agents of the same person, in `api` and in `web`, read the same note independently.
 
-Заметка сообщает, что изменилось, и ссылкой (`--ref`) указывает, где смотреть подробности.
+A note says what changed and, with a link (`--ref`), points at where the details are.
 
-Хаб хранит сообщения, а не знание. «Как сейчас устроено» живёт в репозитории проекта, рядом
-с кодом; хаб сообщает, что оно изменилось, и говорит, где смотреть.
+A hub stores messages, not knowledge. "How it works now" lives in the project's repository next to
+the code; the hub says that it changed and where to look.
 
-## Как выглядит
+## What it looks like
 
 ```console
 $ xchg send @api:bob search-since <<'MSG'
-# /v2/search: since стал обязательным
-Запросы без since теперь 400. Поправь клиент до пятницы.
+# /v2/search: since is now required
+Requests without since return 400. Please update the client by Friday.
 MSG
 sent: work:projects/api/bob/20260909-141200_alice-api_search-since.md
 
 $ xchg inbox
-work     @api:me      task  projects/api/alice/…_bob_schema.md   bob/api    Поправь схему
-work     @api         task  projects/api/…_carol_queue.md        carol/web  Перенести индексы
-work     all          note  all/…_carol_friday.md                carol/web  Пятница короткий день
+work     @api:me      task  projects/api/alice/…_bob_schema.md   bob/api    Fix the schema
+work     @api         task  projects/api/…_carol_queue.md        carol/web  Move the indexes
+work     all          note  all/…_carol_friday.md                carol/web  Short day on Friday
 hub work: 2 more messages in other projects (xchg inbox --all)
 
 $ xchg claim work:projects/api/…_carol_queue.md
 claimed: work:projects/api/alice/20260909-101500_carol_queue.md
 ```
 
-## Установка
+## Install
 
-xchg — плагин Claude Code. Дайте агенту ссылку на этот репозиторий и попросите поставить xchg,
-либо сделайте это сами:
+xchg is a Claude Code plugin. Give your agent a link to this repository and ask it to install xchg,
+or do it yourself:
 
 ```
 /plugin marketplace add nikolaypronchev/xchg
 /plugin install xchg@xchg
 ```
 
-Плагин приносит команду `xchg` в PATH, скилл и два хука. Перезапустите сессию, чтобы они
-загрузились, и скажите `/xchg:setup <url хаба>` — агент подключит хаб, зарегистрирует вас в книге
-контактов и заведёт текущий репозиторий проектом. Дальше `xchg inbox`.
+The plugin puts the `xchg` command on `PATH` and provides the skill and two hooks. Restart the
+session so they load, then run `/xchg:setup <hub url>` — the agent will connect the hub, register
+you in its contact book and add the current repository as a project. After that, `xchg inbox`.
 
-Регистрироваться отдельно не нужно: при подключении к хабу вы попадаете в его книгу контактов,
-при заведении проекта появляется паспорт вашего агента — где код и куда смотреть за документацией.
+There is no separate registration step: connecting to a hub adds you to its contact book, and
+adding a project creates your agent's passport — where the code is and where its documentation
+starts.
 
-Без плагинов — [docs/install.md](docs/install.md). Нужны `bash` ≥ 3.2, `git`, `awk`, `sed`,
-coreutils; необязательны `python3` (поиск по кириллице в контактах) и `jq`.
+Installing without plugins is described in [docs/install.md](docs/install.md). Requirements:
+`bash` ≥ 3.2, `git`, `awk`, `sed`, coreutils; `python3` (case-insensitive Cyrillic lookup in
+contacts) and `jq` are optional.
 
-## Документация
+## Documentation
 
 | | |
 |---|---|
-| [docs/install.md](docs/install.md) | установка, хуки, обновление |
-| [docs/cli.md](docs/cli.md) | все команды и адресация |
-| [docs/hubs.md](docs/hubs.md) | хаб: раскладка, формат сообщения, контракт, свой хаб |
-| [docs/agents.md](docs/agents.md) | агент, проекты, что видно в сессии |
-| [docs/autonomous.md](docs/autonomous.md) | агенты переписываются и работают без человека |
-| [docs/design.md](docs/design.md) | принципы и границы |
+| [docs/install.md](docs/install.md) | install, hooks, updates |
+| [docs/cli.md](docs/cli.md) | every command and the address syntax |
+| [docs/hubs.md](docs/hubs.md) | hub layout, message format, contract, running your own |
+| [docs/agents.md](docs/agents.md) | agents, projects, what a session sees |
+| [docs/autonomous.md](docs/autonomous.md) | agents exchanging mail and working without a human |
+| [docs/design.md](docs/design.md) | principles and boundaries |
 
-Скилл для Claude Code — [skills/exchange](skills/exchange/SKILL.md), эталон контракта хаба —
-[hub/README.md](hub/README.md).
+The same documentation in Russian is in [docs/ru](docs/ru/).
+
+The Claude Code skill is [skills/exchange](skills/exchange/SKILL.md); the hub contract template
+that is copied into a new hub is [hub/README.md](hub/README.md).

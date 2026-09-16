@@ -1,113 +1,117 @@
-# Хабы
+# Hubs
 
-**Хаб** — git-репозиторий с раскладкой и контрактом ниже: тематическая точка обмена и хаб
-доверия. Все, у кого есть push, видят всё, что в нём лежит. Типовой набор: `work` — команда,
-`me` — свои агенты, `hobby` — внешние люди. Логин локален для хаба: в одном вы `alice`,
-в другом `al`.
+*Русская версия: [ru/hubs.md](ru/hubs.md).*
 
-## Раскладка
+A **hub** is a git repository with the layout and contract below: an exchange point for one area
+(work, a hobby, your own agents), and a trust boundary. Everyone with push access sees everything in it. A typical set:
+`work` — the team, `me` — your own agents, `hobby` — outside people. A login is local to the hub:
+in one you are `alice`, in another `al`.
+
+## Layout
 
 ```
-README.md                контракт хаба, в шапке — contract: N
-contacts.md              книга контактов: login ↔ имя ↔ алиасы ↔ контакт
-all/                     сообщения всему хабу
-people/<user>/           человеку — заберёт любой его агент
-projects/<p>/            всем, кто на проекте
-projects/<p>/README.md   карточка проекта: где код, кто владелец
-projects/<p>/<user>/     агенту: человек × проект
-projects/<p>/<user>/README.md   паспорт агента: человек, репозиторий, точка входа в документацию
-*/done/                  закрытые задачи
+README.md                the hub contract, contract: N in the header
+contacts.md              the contact book: login ↔ name ↔ aliases ↔ contact
+all/                     messages to the whole hub
+people/<user>/           a person; any of their agents picks it up
+projects/<p>/            everyone on the project
+projects/<p>/README.md   project card: where the code is, who owns it
+projects/<p>/<user>/     an agent: person × project
+projects/<p>/<user>/README.md   agent passport: person, repository, documentation entry point
+*/done/                  closed tasks
 ```
 
-Каталог адреса содержит только сообщения; `README.md` в нём — карточка, а не сообщение.
+An address directory holds only messages; a `README.md` in it is a card, not a message.
 
-## Сообщение
+## Message
 
-Файл `YYYYMMDD-HHMMSS_<от кого>_<slug>.md`:
+File `YYYYMMDD-HHMMSS_<sender>_<slug>.md`:
 
 ```markdown
 ---
-from: alice/api             # человек/проект; вне репозитория — просто человек
-to: @api:bob                # канонический адрес
-kind: task                  # task — выполнить один раз; note — прочитать каждому
+from: alice/api             # person/project; outside a repository just the person
+to: @api:bob                # canonical address
+kind: task                  # task: do it once; note: everyone reads it
 date: 2026-09-09T14:12:00Z
-re: 20260909-120000_bob_deploy.md    # ответ на что
-ref: api/.claude-docs/api.md         # у заметок: где актуальное состояние
-forwarded_from: work/people/bob/….md # проставляет xchg forward
+re: 20260909-120000_bob_deploy.md    # what this replies to
+ref: api/.claude-docs/api.md         # for notes: where the current state lives
+forwarded_from: work/people/bob/….md # set by xchg forward
 ---
-# Заголовок
+# Title
 
-Текст. Достаточно контекста, чтобы агент разобрался без своего человека.
+Text. Enough context for an agent to understand it without its human.
 ```
 
-## Задачи и заметки
+## Tasks and notes
 
-**Задача** живёт до закрытия. Из общего адреса (`all/`, `projects/<p>/`, `people/<user>/`) её
-сначала берут:
+A **task** lives until it is closed. From a shared address (`all/`, `projects/<p>/`, `people/<user>/`)
+it is claimed first:
 
 ```console
 $ xchg claim work:projects/api/20260909-101500_carol_queue.md
 claimed: work:projects/api/alice/20260909-101500_carol_queue.md
 ```
 
-Файл переезжает в адрес агента — это видно всем. `xchg done` уводит его в `done/` рядом.
-Других меток у задачи нет: открыта она, взята или закрыта — видно по папке, где лежит файл.
+The file moves to the agent's address — everyone sees that. `xchg done` moves it to the `done/` next to that address.
+A task has no other marks: whether it is open, taken or closed is visible from the folder the file is in.
 
-**Заметка** не закрывается и в хабе не меняется: её читает каждый адресат. Отметку «прочитано»
-ставит сам агент (`xchg seen`), и хранится она не в хабе, а в клоне у этого агента
-(`.git/xchg-read/`, отдельно для каждого проекта), поэтому одна и та же заметка в `all/` доходит и до агента в `api`, и до агента
-в `web`. Заметка обязана нести `ref:` — указатель на репозиторий, файл или PR с актуальным
-состоянием: хаб отвечает на «что изменилось», а не на «как сейчас устроено».
+A **note** is never closed and never changes in the hub: every recipient reads it. The "read" mark is
+set by the agent itself (`xchg seen`) and kept not in the hub but in that agent's clone
+(`.git/xchg-read/`, separately for each project), so the same note in `all/` reaches both the agent
+in `api` and the agent in `web`. A note must carry `ref:` — a pointer to a repository, file or PR with
+the current state: the hub answers "what changed", not "how it works now".
 
-## Контракт
+## Contract
 
-1. Сообщение адресату — файл в каталоге адреса. `xchg send` (задача) или `xchg post` (заметка)
-   делают коммит и push сами.
-2. Задачу берут через `claim` и закрывают через `done`; заметку читают через `seen`. Чужие
-   сообщения не редактируют — всё, что попало в хаб, остаётся в истории git.
-3. Знание живёт в репозитории проекта. В хаб идёт событие со ссылкой, а не копия содержимого.
-4. Коммиты маленькие, push сразу; клиент сам делает `pull --rebase` перед push. Хаб может
-   отвергнуть push и объяснить почему одной строкой с префиксом `xchg:` (например, из
-   `pre-receive`); клиент её показывает, отменяет запись и выходит с кодом 1, не повторяя попыток.
-5. Секреты не кладём: только имя переменной или путь.
-6. Логин — как договорились в хабе; проект — каталог в `projects/`, имя совпадает с именем
-   репозитория.
-7. Ящик не опрашивается по таймеру — для этого есть хуки.
+1. A message to a recipient is a file in the address directory. `xchg send` (task) or `xchg post`
+   (note) commit and push by themselves.
+2. A task is taken with `claim` and closed with `done`; a note is read with `seen`. Other people's
+   messages are not edited — everything that entered the hub stays in git history.
+3. Knowledge lives in the project's repository. The hub gets an event with a link, not a copy of the
+   content.
+4. Small commits, push right away; the client runs `pull --rebase` before pushing by itself. A hub may refuse a
+   push and explain why in one line prefixed with `xchg:` (for example, from `pre-receive`); the
+   client shows it, rolls the write back and exits with code 1 without retrying.
+5. No secrets: only a variable name or a path.
+6. The login is whatever was agreed in the hub; a project is a directory in `projects/` named after
+   the repository.
+7. The mailbox is not polled on a timer — hooks do that.
 
-Эталон этого текста, на английском, — [`hub/README.md`](../hub/README.md); он копируется в новый хаб. Число
-в `contract:` — версия раскладки: клиент другой версии писать в такой хаб откажется.
+The reference copy of this text is [`hub/README.md`](../hub/README.md); it is copied into a new hub.
+The number in `contract:` is the layout version: a client of another version refuses to write to
+such a hub.
 
-## Свой хаб
+## Your own hub
 
 ```bash
-# на сервере (или пустой приватный репозиторий на любом хостинге)
+# on a server (or an empty private repository on any hosting)
 git init --bare /srv/exchange.git
-# у первого участника
+# the first participant
 xchg hub init work --remote user@server:/srv/exchange.git --login myname
-xchg projects add api                 # --repo подставится из origin текущего репозитория
-# у остальных
+xchg projects add api                 # --repo is taken from the current repository's origin
+# everyone else
 xchg hub add work user@server:/srv/exchange.git --login theirname
-cd ~/repos/api && xchg projects add   # присоединиться к существующему проекту
+cd ~/repos/api && xchg projects add   # join an existing project
 ```
 
-Отдельно регистрироваться не нужно: при подключении к хабу клиент дописывает вас в `contacts.md`
-(имя и контакт берутся из `git config user.name` и `user.email`) и заводит `people/<login>/`,
-а `xchg projects add` создаёт паспорт агента. Поправить свою строку — `xchg contact --name «…»
---aliases «…»`.
+There is no separate registration: on connecting to a hub the client adds you to `contacts.md`
+(name and contact come from `git config user.name` and `user.email`) and creates `people/<login>/`,
+and `xchg projects add` creates the agent passport. To edit your row: `xchg contact --name '...'
+--aliases '...'`.
 
-Книга контактов — реестр людей хаба: адресат есть, только пока в ней есть его строка. Чтобы
-человек покинул хаб, достаточно убрать строку (`xchg contact rm <login>`) — `people/<login>/`
-и история писем остаются. Книгу, как и весь хаб, правит любой участник; хостинг хаба может
-отказать в чужой правке строкой `xchg: …`.
+The contact book is the hub's registry of people: a recipient exists only while their row is in it.
+For a person to leave the hub it is enough to remove the row (`xchg contact rm <login>`) —
+`people/<login>/` and the message history stay. Like the whole hub, the book can be edited by any
+participant; the hub's hosting may refuse someone else's edit with an `xchg: …` line.
 
-Хаб без remote (`xchg hub init me`) — обычный локальный репозиторий: годится, чтобы свои агенты
-переписывались на одной машине. Когда машин станет больше, `xchg hub remote me <url>` выносит его
-на сервер, и переписка начинает ходить между машинами.
+A hub without a remote (`xchg hub init me`) is a plain local repository: good for your own agents to
+exchange messages on one machine. When you have more machines, `xchg hub remote me <url>` moves it
+to a server, and the conversation starts going between machines.
 
-## Конфиг `~/.config/xchg/xchg.conf`
+## Config `~/.config/xchg/xchg.conf`
 
 ```ini
-default = work            # хаб для адресов без префикса, когда их несколько
+default = work            # hub for addresses without a prefix when there are several
 
 [hub work]
 remote  = git@github.com:team/exchange.git
@@ -119,6 +123,6 @@ path    = ~/exchange/me
 login   = alice
 ```
 
-Грамматика: `ключ = значение`, секции `[hub <имя>]`, комментарии с `#`, `~` в путях
-раскрывается. Любая другая строка — ошибка с номером строки. Файл не в git; ключи — обычные
-ssh-ключи пользователя.
+Grammar: `key = value`, `[hub <name>]` sections, comments with `#`, `~` in paths is expanded. Any
+other line is an error with a line number. The file is not in git; the keys are the user's regular
+ssh keys.

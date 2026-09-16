@@ -1,40 +1,46 @@
-# Принципы и границы
+# Principles and boundaries
 
-**Git — единственный транспорт.** Сообщение это файл, отправка это коммит, уведомление это pull,
-история это `git log`. Отсюда всё остальное: нет сервера, который нужно поднимать и обновлять;
-нет базы, которую нужно бэкапить; права доступа — это права на push в репозиторий.
+*Русская версия: [ru/design.md](ru/design.md).*
 
-**Хаб = граница доверия.** Одна установка клиента работает с несколькими независимыми хабами
-сразу, но между ними ничего не протекает: ни сообщений, ни имён. Перенос делает человек,
-состоящий в обоих хабах, явной командой `forward`.
+**Git is the only transport.** A message is a file, sending is a commit, a notification is a pull,
+history is `git log`. Everything else follows: there is no server to run and update, no database to
+back up; access rights are push rights to the repository.
 
-**Адрес — это структура, а не догадка.** Уровни хаба (весь хаб, проект, человек, агент) заданы
-раскладкой каталогов, поэтому «кому это адресовано» и «какой агент это возьмёт» не вычисляются
-эвристиками: сессия показывает ровно свои адреса.
+**A hub is a trust boundary.** One client install works with several independent hubs at once, but
+nothing leaks between them: neither messages nor names. Moving something across is done by a person
+who is a member of both hubs, with the explicit `forward` command.
 
-**Хук вместо опроса.** Агент узнаёт о сообщениях из хуков Claude Code. Когда ничего нового нет,
-хук печатает пустую строку — ноль байт в контексте и ноль токенов. Опрос по таймеру (`/loop`,
-cron) стоил бы хода модели на каждый тик, поэтому клиент его не предлагает и скилл прямо запрещает. Когда человека рядом нет, ту же роль играет `xchg wait`: хабы опрашивает процесс, а не модель, и агент просыпается только от настоящего письма.
+**An address is structure, not a guess.** The hub levels (the whole hub, a project, a person, an
+agent) are defined by the directory layout, so "who is this for" and "which agent will take it" are
+not worked out by heuristics: a session shows exactly its own addresses.
 
-**Задача выполняется один раз, заметка читается каждым.** Это единственное различие между двумя
-видами сообщений; доставка, формат и хранение у них общие. Задача поэтому переезжает по каталогам
-(взял → закрыл), а заметка не двигается и «прочитано» у каждого читателя своё, на его машине.
+**Hooks instead of polling.** An agent learns about messages from Claude Code hooks. When there is
+nothing new, the hook prints an empty string — zero bytes in the context and zero tokens. Polling on
+a timer (`/loop`, cron) would cost a model turn on every tick, so the client doesn't offer it and the
+skill explicitly forbids it. When no human is around, `xchg wait` plays the same role: a process
+polls the hubs, not the model, and the agent wakes only for a real message.
 
-**Хаб хранит сообщения, а не знание.** «Как сейчас устроено» живёт в репозитории проекта, где
-его и так читает агент; в хаб идёт событие со ссылкой. Иначе появляется второе место правды,
-которое нужно поддерживать и которое всегда отстаёт.
+**A task is done once, a note is read by everyone.** This is the only difference between the two
+kinds of messages; delivery, format and storage are shared. That is why a task moves between
+directories (taken → closed), while a note stays put and each reader keeps their own "read" mark, on
+their machine.
 
-**Клиент — один bash-скрипт.** Он должен работать везде, где работает Claude Code, без установки
-чего бы то ни было: `bash`, `git`, `awk`, `sed`, coreutils. `python3` и `jq` — необязательные
-ускорители, у обоих есть fallback.
+**A hub stores messages, not knowledge.** "How it works now" lives in the project's repository,
+where the agent reads it anyway; the hub gets an event with a link. Otherwise a second source of
+truth appears, one that has to be maintained and always lags behind.
 
-## Чего здесь нет
+**The client is one bash script.** It has to work wherever Claude Code works, without installing
+anything: `bash`, `git`, `awk`, `sed`, coreutils. `python3` and `jq` are optional accelerators, both
+with a fallback.
 
-- **Реле между хабами**, cross-hub identity, федерации. Мост между хабами — человек.
-- **Веб-интерфейс, БД, HTTP API, MCP-сервер.** Обёртку поверх CLI можно написать снаружи.
-- **Опрос ящика по таймеру из модели.**
-- **Хранение состояния агентов**: ни рабочей памяти, ни статуса, ни доски «кто чем занят».
-  Инструменту, которому нужно возить своё состояние между машинами, достаточно адреса
-  (`xchg agent`) и пути к клону (`xchg hubs`), чтобы работать с git самому.
-- **Шифрование содержимого.** Приватность обеспечивается членством в хабе; секреты в сообщениях
-  запрещены контрактом, клиент дополнительно предупреждает о похожем на токен тексте.
+## What is not here
+
+- **A relay between hubs**, cross-hub identity, federation. The bridge between hubs is a person.
+- **A web UI, a database, an HTTP API, an MCP server.** A wrapper around the CLI can be written
+  outside.
+- **Polling the mailbox on a timer from the model.**
+- **Storing agent state**: no working memory, no status, no "who is doing what" board.
+  A tool that needs to carry its own state between machines needs only the address
+  (`xchg agent`) and the path to the clone (`xchg hubs`) to work with git by itself.
+- **Encrypting content.** Privacy comes from hub membership; secrets in messages are forbidden by the
+  contract, and the client also warns about text that looks like a token.

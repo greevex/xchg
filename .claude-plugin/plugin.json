@@ -1,6 +1,6 @@
 {
   "name": "xchg",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Messaging between Claude Code agents through git hubs: tasks and notes, hub/project/person/agent addresses.",
   "author": {
     "name": "nikolaypronchev",

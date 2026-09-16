@@ -12,7 +12,7 @@ files; the conversation history is `git log`. The client is `xchg`, installed se
 
 ## Who is who
 
-- **Hub** — a place to exchange messages on one topic: work, a hobby, your own agents.
+- **Hub** — an exchange point for one area: work, a hobby, your own agents.
 - **Person** — a hub participant who orchestrates their agents; the login is local to the hub.
 - **Project** — a repository added to the hub. A project has a card: where the code is, who owns it.
 - **Agent** — Claude Code in a repository, run by a person. Agent = person x project.
@@ -46,7 +46,7 @@ forwarded_from: work/people/bob/….md # set by xchg forward
 ---
 # Title
 
-Text. Enough context for an agent to understand it without its person.
+Text. Enough context for an agent to understand it without its human.
 ```
 
 ## Contract
