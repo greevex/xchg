@@ -193,6 +193,34 @@ run in_api "$X" claim "$H/exchange/work/projects/api/20260910-091000_carol_q2.md
 run in_api "$X" wait --timeout 2 --interval 1; assert_eq "$RC" 3 "взятая задача переехала, но повторно не будит"
 run in_api "$X" wait --timeout abc; assert_eq "$RC" 2 "неверный таймаут — ошибка вызова"
 
+t "wait: сигнал хостинга вместо опроса по таймеру"
+if command -v python3 >/dev/null 2>&1 && command -v curl >/dev/null 2>&1; then
+  # мини-хостинг: без since отвечает текущий seq (1); с since через 2 с сообщает, что seq стал 2
+  python3 - "$SB/svc.port" > "$SB/svc.log" 2>&1 <<'PY' &
+import http.server, socketserver, sys, time
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        body = b"1\n"
+        if "since=" in self.path:
+            time.sleep(2); body = b"2\n"
+        self.send_response(200); self.send_header("Content-Type", "text/plain"); self.end_headers(); self.wfile.write(body)
+    def log_message(self, *a): pass
+socketserver.TCPServer.allow_reuse_address = True
+with socketserver.TCPServer(("127.0.0.1", 0), H) as s:
+    open(sys.argv[1], "w").write(str(s.server_address[1])); s.serve_forever()
+PY
+  SVC=$!; for i in 1 2 3 4 5 6 7 8 9 10; do [ -s "$SB/svc.port" ] && break; sleep 0.3; done
+  SVCPORT=$(cat "$SB/svc.port")
+  git init -q --bare "$SB/bare-svc"
+  run "$X" hub init svc --remote "$SB/bare-svc" --login alice; assert_eq "$RC" 0 "хаб svc"
+  git -C "$H/exchange/svc" remote set-url origin "http://alice:SECRET@127.0.0.1:$SVCPORT/git/svc.git"
+  T0=$(date +%s); run in_api "$X" wait --timeout 3 --interval 30 --hub svc; T1=$(date +%s)
+  assert_eq "$RC" 3 "письма нет — код 3"; assert_eq "$(cat "$H/exchange/svc/.git/xchg-seq" 2>/dev/null)" 2 "seq хостинга запомнен по сигналу"
+  [ $((T1 - T0)) -lt 10 ] && ok "сигнал пришёл раньше интервала (за $((T1 - T0)) с)" || fail "wait ждал интервал, а не сигнал: $((T1 - T0)) с"
+  kill "$SVC" 2>/dev/null || true; wait "$SVC" 2>/dev/null || true
+  run "$X" hub rm svc; assert_eq "$RC" 0 "hub rm svc"
+else ok "python3 или curl нет — сигнал хостинга не проверяем"; fi
+
 t "файл клиента переписали на месте, пока команда работала"
 assert_eq "$(tail -n 1 "$X")" 'main "$@"; exit $?' "последняя строка — вызов main и выход"
 XC="$SB/client-copy"; mkdir -p "$XC/bin" "$XC/hub"; cp "$X" "$XC/bin/xchg"; cp "$ROOT/hub/README.md" "$XC/hub/"

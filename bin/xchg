@@ -197,6 +197,53 @@ hub_push() {  # <hub> <сообщение коммита>
     git -C "$d" rebase --abort >/dev/null 2>&1 || true; sleep 1; done
   rm -f "$err"; PUSH_FAILED=1; warn "push в хаб $h не удался, коммит остался локально — отправит xchg sync"; return 1
 }
+# Хостинг хабов может отдавать сигнал изменений: GET <база>/v1/hubs/<хаб>/wait?since=N&timeout=S отвечает 200
+# и новым seq, когда в хабе что-то изменилось, 204 — по таймауту, без since — текущий seq. Учётные данные и
+# имя хаба на хостинге — из URL remote вида https://login:token@host/git/<хаб>.git. Нет curl, remote другой
+# или сервис молчит — wait опрашивает хаб по таймеру.
+hub_service() {  # <hub> -> "<база> <login:token> <хаб на хостинге>"; код 1, если сигнала у хаба нет
+  have curl || return 1
+  local r; r=$(git -C "$(hub_path "$1")" remote get-url origin 2>/dev/null) || return 1
+  case "$r" in (https://*:*@*/git/*.git|http://*:*@*/git/*.git) ;; (*) return 1;; esac
+  local scheme="${r%%://*}" rest="${r#*://}"; local cred="${rest%%@*}"; rest="${rest#*@}"
+  local host="${rest%%/*}" slug="${rest#*/git/}"; slug="${slug%.git}"
+  [ -n "$cred" ] && [ -n "$host" ] && [ -n "$slug" ] || return 1
+  echo "$scheme://$host $cred $slug"
+}
+wait_signal() {  # <hub> <секунд> -> 0: в хабе что-то изменилось; 1: таймаут, сигнала нет или сервис не ответил
+  local h="$1" secs="$2" svc base cred slug seq code; local d="$(hub_path "$h")"; local stamp="$d/.git/xchg-seq"
+  svc=$(hub_service "$h") || return 1
+  base="${svc%% *}"; cred="${svc#* }"; slug="${cred#* }"; cred="${cred%% *}"
+  seq=$(cat "$stamp" 2>/dev/null || true)
+  if ! [[ "$seq" =~ ^[0-9]+$ ]]; then
+    seq=$(curl -sf -m 10 -u "$cred" -H 'Accept: text/plain' "$base/v1/hubs/$slug/wait" | tr -dc '0-9') || return 1
+    [ -n "$seq" ] || return 1; echo "$seq" > "$stamp"
+  fi
+  code=$(curl -s -m $((secs + 10)) -u "$cred" -H 'Accept: text/plain' -o "$stamp.new" -w '%{http_code}' \
+    "$base/v1/hubs/$slug/wait?since=$seq&timeout=$secs") || code=000
+  case "$code" in
+    (200) tr -dc '0-9' < "$stamp.new" > "$stamp"; rm -f "$stamp.new"; return 0;;
+    (*) rm -f "$stamp.new"; return 1;;
+  esac
+}
+wait_signals() {  # <секунд> <hub...> -> 0: хоть один хаб с сигналом изменился; 1: нет (сразу, если сигнала нет ни у кого)
+  local secs="$1"; shift; local h tmp pids=() any=0 p rc=1 alive
+  for h in "$@"; do hub_service "$h" >/dev/null 2>&1 && any=1; done
+  [ "$any" = 1 ] || return 1
+  tmp=$(mktemp -d)
+  for h in "$@"; do hub_service "$h" >/dev/null 2>&1 || continue
+    ( wait_signal "$h" "$secs" && touch "$tmp/$h" ) & pids+=($!); done
+  local deadline=$(( $(now_epoch) + secs + 15 ))
+  while :; do
+    [ -n "$(ls -A "$tmp")" ] && { rc=0; break; }
+    alive=0; for p in ${pids[@]+"${pids[@]}"}; do kill -0 "$p" 2>/dev/null && alive=1; done
+    [ "$alive" = 0 ] && break
+    [ "$(now_epoch)" -ge "$deadline" ] && break
+    sleep 0.2
+  done
+  kill ${pids[@]+"${pids[@]}"} 2>/dev/null || true; wait 2>/dev/null || true
+  rm -rf "$tmp"; return "$rc"
+}
 
 # --- люди и проекты хаба ---------------------------------------------------------------------
 resolve_user() {  # <hub> <запрос> -> login. Реестр людей — только contacts.md: нет строки — нет в хабе.
@@ -545,7 +592,7 @@ cmd_wait() {
     *) udie "wait [--timeout сек] [--interval сек] [--all] [--hub H]";; esac; done
   { [[ "$timeout" =~ ^[0-9]+$ ]] && [[ "$interval" =~ ^[1-9][0-9]*$ ]]; } || udie "wait: --timeout и --interval — целые секунды (--interval от 1)"
   require_hubs
-  local hubs start line h rel new n pause left; hubs=$(hub_filter); start=$(now_epoch)
+  local hubs start line h rel new n pause left t0 spent; hubs=$(hub_filter); start=$(now_epoch)
   BRIEF=1; MAX_AGE=0; XCHG_NO_SELFUPDATE=1   # не тянуть репозиторий клиента на каждом витке ожидания
   while :; do
     sync_hubs $hubs >/dev/null 2>&1 || true
@@ -561,7 +608,11 @@ cmd_wait() {
       [ "$left" -gt 0 ] || { echo "xchg: за ${timeout} с новых сообщений нет" >&2; exit 3; }
       [ "$left" -lt "$pause" ] && pause="$left"
     fi
-    sleep "$pause"
+    # хаб с сигналом: ждём сигнал вместо сна, но не дольше pause; остальные хабы — опрос по таймеру
+    t0=$(now_epoch)
+    if ! wait_signals "$pause" $hubs; then
+      spent=$(( $(now_epoch) - t0 )); [ "$spent" -lt "$pause" ] && sleep $(( pause - spent ))
+    fi
   done
 }
 cmd_read() { require_hubs; [ -n "${1:-}" ] || udie "read <файл>"; locate "$1"; sync_hubs "$L_HUB"

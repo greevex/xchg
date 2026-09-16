@@ -7,7 +7,7 @@ tags: [memory/repo, architecture]
 
 1. **Утилиты** — `die/udie/warn`, `meta` (поле frontmatter), `title`, `body_of`, `plural`, `rel_time`.
 2. **Конфиг** — `parse_conf` (awk печатает `G/H/S/E` строки с TAB, bash раскладывает через `hub_new/hub_set` в параллельные массивы `HUBS/HUB_PATHS/HUB_REMOTES/HUB_LOGINS`; читать — `hub_path/hub_remote/hub_login`, искать — `hub_idx`), `load_conf`, правки `conf_set_global/conf_set_hub/conf_rm_hub/conf_add_hub` (awk → tmp → mv), `ensure_conf`, `check_contract`.
-3. **Синхронизация** — `hub_sync` (pull одного хаба и дотолкнуть то, что не ушло после неудачного push; стампы в `.git/xchg-last-sync`, `.git/xchg-unavail`), `sync_hubs` (параллельно, дедлайн 20 с), `self_update`, `hub_push` (commit + pull --rebase + push ×3).
+3. **Синхронизация** — `hub_sync` (pull одного хаба и дотолкнуть то, что не ушло после неудачного push; стампы в `.git/xchg-last-sync`, `.git/xchg-unavail`), `sync_hubs` (параллельно, дедлайн 20 с), `self_update`, `hub_push` (commit + pull --rebase + push ×3), `hub_service`/`wait_signal`/`wait_signals` (сигнал изменений от хостинга по curl для `wait`: база, учётные данные и имя хаба — из URL remote; seq в `.git/xchg-seq`).
 4. **Люди и проекты** — `resolve_user` (только contacts.md: сначала точный логин, потом имя/алиасы; python3 casefold или awk), `user_gone` (каталог people/ без строки — только для текста ошибки «больше не в хабе»), `has_project`, `user_projects` (участие выводится из каталогов агентов), `register_me` и `agent_passport` (авторегистрация при `hub add/init` и `projects add`).
 5. **Адреса** — `parse_addr` → `A_HUB/A_REL/A_LABEL` (части в любом порядке, хаб выводится из содержимого), `addr_label` (обратно в короткую метку), `locate` (файл по `хаб:путь`, абсолютному пути или единственному совпадению).
 6. **Агент** — `repo_root`, `cur_project`, `project_norm` (имя репозитория → допустимое имя проекта) (basename главного репозитория или `git config xchg.project`), `sender_id` (`user/project`), `my_addrs` (адреса сессии), `other_addrs` (мои адреса в других проектах), `cmd_agent`.
@@ -37,7 +37,7 @@ tags: [memory/repo, architecture]
 ## Состояние на диске
 
 - `~/.config/xchg/xchg.conf` — реестр хабов (не в git).
-- `<клон>/.git/xchg-last-sync`, `xchg-unavail` — стампы синхронизации и недоступности.
+- `<клон>/.git/xchg-last-sync`, `xchg-unavail` — стампы синхронизации и недоступности; `xchg-seq` — последний seq хостинга с сигналом изменений (`wait`).
 - `<клон>/.git/xchg-read/<проект>--<адрес>` — прочитанные заметки: список имён файлов, свой у каждого агента.
 - `<клон>/.git/xchg-shown/<проект>` — имена писем, уже показанных агенту (хук, `inbox`, `wait`, свои отправки): `wait` будит только на остальные.
 - `<клон>/.git/xchg-muted/<проект>` — имена писем, заглушённых этим агентом (`xchg mute`); `claim` снимает пометку.
