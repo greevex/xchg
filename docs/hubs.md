@@ -47,7 +47,7 @@ forwarded_from: work/people/bob/….md # проставляет xchg forward
 
 ```console
 $ xchg claim work:projects/api/20260909-101500_carol_queue.md
-взято: work:projects/api/alice/20260909-101500_carol_queue.md
+claimed: work:projects/api/alice/20260909-101500_carol_queue.md
 ```
 
 Файл переезжает в адрес агента — это видно всем. `xchg done` уводит его в `done/` рядом.
@@ -74,7 +74,7 @@ $ xchg claim work:projects/api/20260909-101500_carol_queue.md
    репозитория.
 7. Ящик не опрашивается по таймеру — для этого есть хуки.
 
-Эталон этого текста — [`hub/README.md`](../hub/README.md); он копируется в новый хаб. Число
+Эталон этого текста, на английском, — [`hub/README.md`](../hub/README.md); он копируется в новый хаб. Число
 в `contract:` — версия раскладки: клиент другой версии писать в такой хаб откажется.
 
 ## Свой хаб

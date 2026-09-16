@@ -34,7 +34,7 @@ me:@api:alice
 
 ```console
 $ cd ~/repos/api && xchg projects add
-проект заведён: work:projects/api (карточка — projects/api/README.md)
+project added: work:projects/api (card: projects/api/README.md)
 ```
 
 Команда делает три вещи: заводит проект с карточкой (если его ещё нет), записывает вас
@@ -47,16 +47,16 @@ $ cd ~/repos/api && xchg projects add
 ```markdown
 # api                                    ← projects/api/README.md
 
-Репозиторий: git@github.com:team/api.git
-Владелец: bob
+Repository: git@github.com:team/api.git
+Owner: bob
 ```
 
 ```markdown
-# alice на проекте api                   ← projects/api/alice/README.md
+# alice on project api                   ← projects/api/alice/README.md
 
-Человек: alice
-Репозиторий: git@example.com:team/api.git
-Документация репозитория: .claude-docs/index.md
+Person: alice
+Repository: git@example.com:team/api.git
+Repository docs: .claude-docs/index.md
 ```
 
 Репозиторий и точка входа в документацию берутся из текущего клона (`origin` и первый найденный
@@ -96,7 +96,7 @@ $ cd ~/repos/api && xchg send me:@web:alice handoff <<'MSG'
 # Продолжи миграцию
 Схема — в api/.claude-docs/db.md, осталось перенести индексы.
 MSG
-отправлено: me:projects/web/alice/20260909-111506_alice-api_handoff.md
+sent: me:projects/web/alice/20260909-111506_alice-api_handoff.md
 ```
 
 Следующая сессия в `~/repos/web` увидит это письмо в хуке. `from` — `alice/api`, поэтому

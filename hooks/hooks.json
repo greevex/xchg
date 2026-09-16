@@ -1,5 +1,5 @@
 {
-  "description": "Показывает новые сообщения xchg при старте сессии и перед сообщением пользователя. Когда нового нет, вывод пустой — контекст и токены не тратятся.",
+  "description": "Shows new xchg messages at session start and before each user message. When there is nothing new the output is empty, so no context or tokens are spent.",
   "hooks": {
     "SessionStart": [
       {

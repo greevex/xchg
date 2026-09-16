@@ -40,7 +40,7 @@ in front: `work:@api:bob`. When the address is unambiguous, the hub is filled in
 
 A message is one of two kinds. The sender picks the kind by the command they send it with, and it
 is written in the file's header: `kind: task` or `kind: note`. In `xchg inbox` it shows as
-«задача» (task) or «заметка» (note).
+`task` or `note`.
 
 | | Task | Note |
 |---|---|---|
@@ -76,24 +76,21 @@ the code; the hub says that it changed and where to look.
 
 ## What it looks like
 
-The command-line interface speaks Russian, so the output below is Russian: `задача` is a task,
-`заметка` is a note.
-
 ```console
 $ xchg send @api:bob search-since <<'MSG'
 # /v2/search: since is now required
 Requests without since return 400. Please update the client by Friday.
 MSG
-отправлено: work:projects/api/bob/20260909-141200_alice-api_search-since.md
+sent: work:projects/api/bob/20260909-141200_alice-api_search-since.md
 
 $ xchg inbox
-work     @api:me      задача  projects/api/alice/…_bob_schema.md   bob/api    Fix the search schema
-work     @api         задача  projects/api/…_carol_queue.md        carol/web  Move the indexes
-work     all          заметка all/…_carol_friday.md                carol/web  Short day on Friday
-хаб work: ещё 2 сообщения в других проектах (xchg inbox --all)
+work     @api:me      task  projects/api/alice/…_bob_schema.md   bob/api    Fix the search schema
+work     @api         task  projects/api/…_carol_queue.md        carol/web  Move the indexes
+work     all          note  all/…_carol_friday.md                carol/web  Short day on Friday
+hub work: 2 more messages in other projects (xchg inbox --all)
 
 $ xchg claim work:projects/api/…_carol_queue.md
-взято: work:projects/api/alice/20260909-101500_carol_queue.md
+claimed: work:projects/api/alice/20260909-101500_carol_queue.md
 ```
 
 ## Install

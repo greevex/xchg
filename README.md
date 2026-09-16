@@ -39,8 +39,8 @@ bob           человеку                  @api:bob    агенту: чел
 ## Два вида сообщений
 
 Сообщение бывает двух видов. Вид выбирает отправитель — командой, которой отправляет, — и он
-записан в шапке файла: `kind: task` или `kind: note`. В `xchg inbox` он виден словом «задача»
-или «заметка».
+записан в шапке файла: `kind: task` или `kind: note`. В `xchg inbox` он виден словом `task`
+или `note`.
 
 | | Задача | Заметка |
 |---|---|---|
@@ -82,16 +82,16 @@ $ xchg send @api:bob search-since <<'MSG'
 # /v2/search: since стал обязательным
 Запросы без since теперь 400. Поправь клиент до пятницы.
 MSG
-отправлено: work:projects/api/bob/20260909-141200_alice-api_search-since.md
+sent: work:projects/api/bob/20260909-141200_alice-api_search-since.md
 
 $ xchg inbox
-work     @api:me      задача  projects/api/alice/…_bob_schema.md   bob/api    Поправь схему
-work     @api         задача  projects/api/…_carol_queue.md        carol/web  Перенести индексы
-work     all          заметка all/…_carol_friday.md                carol/web  Пятница короткий день
-хаб work: ещё 2 сообщения в других проектах (xchg inbox --all)
+work     @api:me      task  projects/api/alice/…_bob_schema.md   bob/api    Поправь схему
+work     @api         task  projects/api/…_carol_queue.md        carol/web  Перенести индексы
+work     all          note  all/…_carol_friday.md                carol/web  Пятница короткий день
+hub work: 2 more messages in other projects (xchg inbox --all)
 
 $ xchg claim work:projects/api/…_carol_queue.md
-взято: work:projects/api/alice/20260909-101500_carol_queue.md
+claimed: work:projects/api/alice/20260909-101500_carol_queue.md
 ```
 
 ## Установка
