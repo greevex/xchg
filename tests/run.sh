@@ -267,6 +267,19 @@ mv "$SB/bare-work.off" "$SB/bare-work"
 run in_api "$X" sync; assert_eq "$RC" 0 "sync после возвращения хаба — код 0"; assert_not_contains "$OUT" "не отправлено"
 git -C "$W2" pull -q; [ -n "$(ls "$W2/people/bob/"*_offline.md 2>/dev/null)" ] && ok "письмо дошло до хаба" || fail "sync не дотолкнул письмо"
 
+t "хаб отвергает push со строкой xchg:"
+printf '#!/bin/sh\necho "xchg: тест отказа" >&2\nexit 1\n' > "$SB/bare-work/hooks/pre-receive"; chmod +x "$SB/bare-work/hooks/pre-receive"
+WH="$H/exchange/work"; HEAD0=$(git -C "$WH" rev-parse HEAD)
+run in_api "$X" send bob refused <<< '# Отвергнуто'; assert_eq "$RC" 1 "отказ хаба — код 1, без повторов"
+assert_contains "$OUT" "xchg: тест отказа"; assert_contains "$OUT" "[hub work]"; assert_not_contains "$OUT" "отправит xchg sync"
+assert_eq "$(git -C "$WH" rev-parse HEAD)" "$HEAD0" "локальный коммит откачен"
+[ -z "$(ls "$WH/people/bob/"*_refused.md 2>/dev/null)" ] && ok "файла письма в клоне нет" || fail "письмо осталось в клоне"
+# sync с застрявшим локальным коммитом показывает причину отказа
+touch "$WH/stuck"; git -C "$WH" add stuck; git -C "$WH" commit -qm stuck
+run in_api "$X" sync; assert_eq "$RC" 4 "sync при отказе — код 4"; assert_contains "$OUT" "хаб work отверг неотправленное: тест отказа"
+git -C "$WH" reset -q --hard "$HEAD0"; rm "$SB/bare-work/hooks/pre-receive"
+run in_api "$X" send bob accepted <<< '# После снятия хука'; assert_eq "$RC" 0 "без хука send проходит"
+
 t "контакты, секреты, контракт, недоступный хаб"
 run "$X" contact --name "Алиса Иванова" --aliases "аля"; assert_contains "$OUT" "| alice | Алиса Иванова | аля |"
 run "$X" who аля; assert_contains "$OUT" "work  | alice"

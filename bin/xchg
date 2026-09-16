@@ -139,7 +139,8 @@ hub_sync() {  # <hub>; stdout — уведомления для агента
     echo "$now" > "$stamp"; rm -f "$d/.git/xchg-unavail"
     # хаб доступен — отправить то, что осталось от неудачного push: иначе у сервиса без исходящих писем оно не уйдёт никогда
     if [ "$(git -C "$d" rev-list --count '@{u}..HEAD' 2>/dev/null || echo 0)" -gt 0 ]; then
-      with_timeout 20 git -C "$d" push -q >/dev/null 2>&1 || true
+      local why; why=$(with_timeout 20 git -C "$d" push -q 2>&1 >/dev/null | hub_refusal || true)
+      [ -z "$why" ] || echo "хаб $h отверг неотправленное: ${why} — проверь login хаба в $CONF ([hub $h]); посмотреть: git -C $d log @{u}.."
     fi
     local after; after=$(git -C "$d" rev-parse HEAD)
     if [ "$before" != none ] && [ "$before" != "$after" ]; then
@@ -177,12 +178,24 @@ self_update() {  # git pull в репозитории клиента; молчи
   echo "$now" > "$stamp"; after=$(git -C "$XCHG_ROOT" rev-parse HEAD)
   [ "$before" = "$after" ] || { echo "xchg: клиент обновлён:"; git -C "$XCHG_ROOT" log --oneline "$before..$after" | sed 's/^/  /'; }
 }
+# Хаб может отвергнуть push и объяснить почему строками «xchg: …» из хука: это не сбой сети, повтор не поможет.
+hub_refusal() { awk '{gsub(/\033\[K/,"")} sub(/^remote: xchg: */,"") {sub(/[ \t\r]+$/,""); print}'; }
 hub_push() {  # <hub> <сообщение коммита>
   local h="$1"; local d="$(hub_path "$h")"; git -C "$d" commit -q -m "$2"
   hub_has_remote "$h" || return 0
-  local i; for i in 1 2 3; do git -C "$d" pull -q --rebase --autostash >/dev/null 2>&1 && git -C "$d" push -q 2>/dev/null && return 0
+  local i err why l; err=$(mktemp)
+  for i in 1 2 3; do
+    if git -C "$d" pull -q --rebase --autostash >/dev/null 2>&1; then
+      git -C "$d" push -q 2>"$err" && { rm -f "$err"; return 0; }
+      why=$(hub_refusal < "$err")
+      if [ -n "$why" ]; then
+        rm -f "$err"; git -C "$d" reset -q --hard HEAD~1   # после pull --rebase наш коммит — последний
+        while IFS= read -r l; do warn "$l"; done <<< "$why"
+        die "хаб $h отверг запись, она отменена — проверь login хаба в $CONF ([hub $h]) и повтори"
+      fi
+    fi
     git -C "$d" rebase --abort >/dev/null 2>&1 || true; sleep 1; done
-  PUSH_FAILED=1; warn "push в хаб $h не удался, коммит остался локально — отправит xchg sync"; return 1
+  rm -f "$err"; PUSH_FAILED=1; warn "push в хаб $h не удался, коммит остался локально — отправит xchg sync"; return 1
 }
 
 # --- люди и проекты хаба ---------------------------------------------------------------------
