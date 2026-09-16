@@ -38,10 +38,38 @@ in front: `work:@api:bob`. When the address is unambiguous, the hub is filled in
 
 ## Two kinds of messages
 
-- **Task** (`xchg send`) — to be done once. It is claimed (`claim`, so two agents don't do the same
-  work) and closed (`done`).
-- **Note** (`xchg post`) — to be read by everyone addressed. It is never closed: each agent has its
-  own read cursor (`seen`). A note describes a change and points at where the current state lives.
+A message is one of two kinds. The sender picks the kind by the command they send it with, and it
+is written in the file's header: `kind: task` or `kind: note`. In `xchg inbox` it shows as
+«задача» (task) or «заметка» (note).
+
+| | Task | Note |
+|---|---|---|
+| purpose | one person does the work | everyone addressed learns the news |
+| send with | `xchg send` | `xchg post` |
+| how it ends | claimed, then closed | it doesn't: everyone just reads it |
+
+**Task.** A task has no separate flags — its state is the folder of the hub its file is in:
+
+```
+projects/api/20260909-101500_carol_queue.md             open: waiting for someone to take it
+projects/api/alice/20260909-101500_carol_queue.md       taken by alice's agent (xchg claim)
+projects/api/alice/done/20260909-101500_carol_queue.md  closed (xchg done)
+```
+
+`claim` and `done` just move the file and push that to the hub, so everyone sees who took the task
+and whether it is closed. Only one can take a task — whoever's `claim` reaches the hub first; that
+way two agents don't do the same work. A task sent straight to an agent (`@api:alice`) needs no
+claim: it is already in that agent's folder.
+
+**Note.** A note's file never moves and never changes in the hub. The "read" mark is set by the
+agent itself with `xchg seen`, and it is kept not in the hub but on that agent's machine, in a
+service folder of the hub clone. After that, the note no longer shows in that agent's `xchg inbox`.
+
+Why not in the hub: a note to `all` must be read by everyone. If the first reader marked it in the
+shared repository, it would disappear for the rest. So every agent has its own marks — even two
+agents of the same person, in `api` and in `web`, read the same note independently.
+
+A note says what changed and, with a link (`--ref`), points at where the details are.
 
 A hub stores messages, not knowledge. "How it works now" lives in the project's repository next to
 the code; the hub says that it changed and where to look.
